@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { getDirectoryContents, FileEntry } from "@/app/actions/fs";
-import { Folder, FileText, ChevronUp, Loader2, AlertCircle } from "lucide-react";
+import { exportDirectoryToHTML } from "@/app/actions/export";
+import { Folder, FileText, ChevronUp, Loader2, AlertCircle, Download } from "lucide-react";
 
 export default function Sidebar({
     currentDir,
@@ -18,6 +19,7 @@ export default function Sidebar({
     const [files, setFiles] = useState<FileEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         if (!currentDir) return;
@@ -65,22 +67,62 @@ export default function Sidebar({
         setCurrentDir(newDir);
     };
 
+    const handleExport = async () => {
+        if (!currentDir || files.length === 0) return;
+
+        try {
+            setExporting(true);
+            const htmlString = await exportDirectoryToHTML(currentDir);
+
+            const blob = new Blob([htmlString], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+
+            const isWindows = currentDir.includes("\\");
+            const parts = currentDir.split(isWindows ? "\\" : "/").filter(Boolean);
+            const folderName = parts.length > 0 ? parts[parts.length - 1] : "export";
+
+            a.download = `${folderName}_export.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error("Export failed:", err);
+            alert(`Failed to export: ${err.message}`);
+        } finally {
+            setExporting(false);
+        }
+    };
+
     return (
         <div className="w-72 lg:w-80 border-r border-neutral-800 bg-neutral-900/40 flex flex-col h-full shrink-0 shadow-lg z-10">
-            <div className="px-4 py-3.5 border-b border-neutral-800 flex items-center gap-3 bg-neutral-900/80 sticky top-0 z-10 backdrop-blur-xl">
-                <button
-                    onClick={handleUpDirectory}
-                    className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all active:scale-95 border border-transparent hover:border-neutral-700 shadow-sm"
-                    title="Go up one folder"
-                >
-                    <ChevronUp size={18} />
-                </button>
-                <div
-                    className="text-sm font-medium truncate text-neutral-300 flex-1 whitespace-nowrap overflow-hidden text-ellipsis select-none"
-                    title={currentDir}
-                >
-                    {currentDir || "Loading..."}
+            <div className="px-4 py-3.5 border-b border-neutral-800 flex items-center justify-between gap-3 bg-neutral-900/80 sticky top-0 z-10 backdrop-blur-xl">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <button
+                        onClick={handleUpDirectory}
+                        className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all active:scale-95 border border-transparent hover:border-neutral-700 shadow-sm"
+                        title="Go up one folder"
+                    >
+                        <ChevronUp size={18} />
+                    </button>
+                    <div
+                        className="text-sm font-medium truncate text-neutral-300 flex-1 whitespace-nowrap overflow-hidden text-ellipsis select-none"
+                        title={currentDir}
+                    >
+                        {currentDir || "Loading..."}
+                    </div>
                 </div>
+                <button
+                    onClick={handleExport}
+                    disabled={exporting || files.filter(f => !f.isDirectory).length === 0}
+                    className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all border border-transparent hover:border-neutral-700 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-neutral-400 disabled:hover:border-transparent flex items-center justify-center gap-2 group"
+                    title="Export folder as standalone web app"
+                >
+                    {exporting ? <Loader2 size={16} className="animate-spin text-blue-400" /> : <Download size={16} className="group-hover:text-blue-400 transition-colors" />}
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -107,8 +149,8 @@ export default function Sidebar({
                             key={entry.path}
                             onClick={() => entry.isDirectory ? setCurrentDir(entry.path) : onSelectFile(entry.path)}
                             className={`flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg cursor-pointer transition-all duration-200 group ${selectedFile === entry.path
-                                    ? "bg-blue-600/10 text-blue-400 font-medium border border-blue-500/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
-                                    : "text-neutral-300 hover:bg-neutral-800/60 hover:text-white border border-transparent"
+                                ? "bg-blue-600/10 text-blue-400 font-medium border border-blue-500/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
+                                : "text-neutral-300 hover:bg-neutral-800/60 hover:text-white border border-transparent"
                                 }`}
                         >
                             <div className={`p-1.5 rounded-md transition-colors ${selectedFile === entry.path ? 'bg-blue-500/10' : 'bg-neutral-800/50 group-hover:bg-neutral-700/50'}`}>
