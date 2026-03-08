@@ -98,7 +98,7 @@ export default function Sidebar({
     };
 
     return (
-        <div className="w-72 lg:w-80 border-r border-neutral-800 bg-neutral-900/40 flex flex-col h-full shrink-0 shadow-lg z-10">
+        <div className="bg-neutral-900/40 flex flex-col h-full shrink-0 shadow-lg z-10">
             <div className="px-4 py-3.5 border-b border-neutral-800 flex items-center justify-between gap-3 bg-neutral-900/80 sticky top-0 z-10 backdrop-blur-xl">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                     <button
